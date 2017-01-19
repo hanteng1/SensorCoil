@@ -13,7 +13,9 @@ import numpy as np
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
+from collections import deque
+#threading
+import threading
 
 #############################################################################################
 # LDC1000 addressing space
@@ -172,50 +174,28 @@ def ldc_stop_streaming(serial_port):
         print("Error in write register")
         exit()
 
-#############################################################################################
-# plot space
-class Scope(object):
-    def __init__(self, ax, maxt=2, dt=0.02):
-        self.ax = ax
-        self.dt = dt
-        self.maxt = maxt
-        self.tdata = [0]
-        self.ydata = [0]
-        self.line = Line2D(self.tdata, self.ydata)
-        self.ax.add_line(self.line)
-        self.ax.set_ylim(-.1, 1.1)
-        self.ax.set_xlim(0, self.maxt)
+#initilize the channle buffers
+ch0_buf = deque(0 for _ in range(5000))
+ch1_buf = deque(0 for _ in range(5000))
+ch2_buf = deque(0 for _ in range(5000))
+ch3_buf = deque(0 for _ in range(5000))
+avg = 0
 
-    def update(self, y):
-        lastt = self.tdata[-1]
-        if lastt > self.tdata[0] + self.maxt:  # reset the arrays
-            self.tdata = [self.tdata[-1]]
-            self.ydata = [self.ydata[-1]]
-            self.ax.set_xlim(self.tdata[0], self.tdata[0] + self.maxt)
-            self.ax.figure.canvas.draw()
+def AddValue(val):
+    global avg
 
-        t = self.tdata[-1] + self.dt
-        self.tdata.append(t)
-        self.ydata.append(y)
-        self.line.set_data(self.tdata, self.ydata)
-        return self.line,
+    ch0_buf.append(val)
+    ch0_buf.popleft()
 
+    avg = avg + 0.1*(val-avg)
+    ch1_buf.append(avg)
+    ch1_buf.popleft()
 
-def emitter(p=0.03):
-    'return a random value with probability p, else 0'
-    while True:
-        v = np.random.rand(1)
-        if v > p:
-            yield 0.
-        else:
-            yield np.random.rand(1)
-
-
-def main():
+def msp430():
     serial_port = serial.Serial(port='/dev/tty.usbmodem621', baudrate=115200)
     device_id   = read_reg  (serial_port, LDC1614_DEVICE_ID)
     print("device_id=%s" % (device_id))
-    
+
     #modify the registration, sample
     ldc_config (serial_port)
     write_reg (serial_port, LDC1614_CONFIG, '1E01')
@@ -226,14 +206,17 @@ def main():
     try:
         while 1:   
             read_val = serial_port.read(32)
-            print("Read:%s" % (binascii.hexlify(read_val)))
+            #print("Read:%s" % (binascii.hexlify(read_val)))
+            #get channel 0
+            ch_0 = int(binascii.hexlify(read_val[7:11]), 16)
+            AddValue(ch_0)
+            print("read:%s"%ch_0)
             #get channel 1
-            ch_1 = 
+            ch_1 = int(binascii.hexlify(read_val[11:15]), 16)
             #get channel 2
-
+            ch_2 = int(binascii.hexlify(read_val[15:19]), 16)
             #get channel 3
-
-            #get channel 4
+            ch_3 = int(binascii.hexlify(read_val[19:23]), 16)
 
             time.sleep(0.005)
     except KeyboardInterrupt:
@@ -245,7 +228,31 @@ def main():
         ldc_stop_streaming(serial_port)
         serial_port.close()
         exit()
-        
+
+
+#############################################################################################
+
+
+
+def main():
+    threading.Thread(target=msp430).start()
+
+    fig, (p1, p2) = plt.subplots(2, 1)
+    plot_data, = p1.plot(ch0_buf, animated=True)
+    plot_processed, = p2.plot(ch1_buf, animated=True)
+    p1.set_ylim(891300000, 891500000)
+    p2.set_ylim(891300000, 891500000)
+
+    def animate(i):
+        plot_data.set_ydata(ch0_buf)
+        plot_data.set_xdata(range(len(ch0_buf)))
+        plot_processed.set_ydata(ch1_buf)
+        plot_processed.set_xdata(range(len(ch1_buf)))
+        return [plot_data, plot_processed]
+    
+    ani = animation.FuncAnimation(fig, animate, range(10000), 
+                                  interval=10, blit=True)
+    plt.show()
 
 if __name__ == "__main__":
     main()
