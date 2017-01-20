@@ -192,6 +192,8 @@ def AddValue(val):
     ch1_buf.popleft()
 
 def msp430():
+    t = threading.currentThread()
+
     serial_port = serial.Serial(port='/dev/tty.usbmodem621', baudrate=115200)
     device_id   = read_reg  (serial_port, LDC1614_DEVICE_ID)
     print("device_id=%s" % (device_id))
@@ -204,7 +206,7 @@ def msp430():
     ldc_start_streaming(serial_port)
 
     try:
-        while 1:   
+        while getattr(t, "do_run", True):   
             read_val = serial_port.read(32)
             #print("Read:%s" % (binascii.hexlify(read_val)))
             #get channel 0
@@ -219,25 +221,32 @@ def msp430():
             ch_3 = int(binascii.hexlify(read_val[19:23]), 16)
 
             time.sleep(0.005)
-    except KeyboardInterrupt:
-        print "exiting...."
-        while serial_port.inWaiting():
-            read_val = serial_port.read(serial_port.inWaiting())
-            print("Read:%s" % (binascii.hexlify(read_val)))
-    finally:
-        ldc_stop_streaming(serial_port)
-        serial_port.close()
-        exit()
+    except ValueError:
+        pass
+
+    print('existing...')
+    while serial_port.inWaiting():
+        read_val = serial_port.read(serial_port.inWaiting())
+        print("Read:%s" % (binascii.hexlify(read_val)))
+
+    ldc_stop_streaming(serial_port)
+    serial_port.close()
+    exit()
 
 
 #############################################################################################
 
-
-
 def main():
-    threading.Thread(target=msp430).start()
+    #threading.Thread(target=msp430).start()
+    t = threading.Thread(target=msp430)
+    t.start()
+
+    def handle_close(evt):
+        t.do_run = False
+        t.join()
 
     fig, (p1, p2) = plt.subplots(2, 1)
+    fig.canvas.mpl_connect('close_event', handle_close)
     plot_data, = p1.plot(ch0_buf, animated=True)
     plot_processed, = p2.plot(ch1_buf, animated=True)
     p1.set_ylim(891300000, 891500000)
@@ -251,7 +260,7 @@ def main():
         return [plot_data, plot_processed]
     
     ani = animation.FuncAnimation(fig, animate, range(10000), 
-                                  interval=10, blit=True)
+                                  interval=50, blit=True)
     plt.show()
 
 if __name__ == "__main__":
