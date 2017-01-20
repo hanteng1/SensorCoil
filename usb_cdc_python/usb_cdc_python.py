@@ -220,7 +220,7 @@ def msp430():
             #get channel 3
             ch_3 = int(binascii.hexlify(read_val[19:23]), 16)
 
-            time.sleep(0.005)
+            time.sleep(0.005)  # ~200Hz
     except ValueError:
         pass
 
@@ -249,8 +249,8 @@ def main():
     fig.canvas.mpl_connect('close_event', handle_close)
     plot_data, = p1.plot(ch0_buf, animated=True)
     plot_processed, = p2.plot(ch1_buf, animated=True)
-    p1.set_ylim(891300000, 891500000)
-    p2.set_ylim(891300000, 891500000)
+    p1.set_ylim(876300000, 880500000)
+    p2.set_ylim(876300000, 880500000)
 
     def animate(i):
         plot_data.set_ydata(ch0_buf)
