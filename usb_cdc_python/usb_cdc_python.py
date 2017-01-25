@@ -10,6 +10,8 @@ import struct
 from array import *
 import binascii
 import numpy as np
+import os
+os.environ['PYTHON_EGG_CACHE'] = '/tmp'
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -191,6 +193,10 @@ def AddValue(val):
     ch1_buf.append(avg)
     ch1_buf.popleft()
 
+def AddValue(val, ch):
+    ch.append(val)
+    ch.popleft()
+
 def msp430():
     t = threading.currentThread()
 
@@ -211,14 +217,18 @@ def msp430():
             #print("Read:%s" % (binascii.hexlify(read_val)))
             #get channel 0
             ch_0 = int(binascii.hexlify(read_val[7:11]), 16)
-            AddValue(ch_0)
+            #AddValue(ch_0)
+            AddValue(ch_0, ch0_buf)
             print("read:%s"%ch_0)
             #get channel 1
             ch_1 = int(binascii.hexlify(read_val[11:15]), 16)
+            AddValue(ch_1, ch1_buf)
             #get channel 2
             ch_2 = int(binascii.hexlify(read_val[15:19]), 16)
+            AddValue(ch_2, ch2_buf)
             #get channel 3
             ch_3 = int(binascii.hexlify(read_val[19:23]), 16)
+            AddValue(ch_3, ch3_buf)
 
             time.sleep(0.005)  # ~200Hz
     except ValueError:
@@ -249,8 +259,8 @@ def main():
     fig.canvas.mpl_connect('close_event', handle_close)
     plot_data, = p1.plot(ch0_buf, animated=True)
     plot_processed, = p2.plot(ch1_buf, animated=True)
-    p1.set_ylim(876300000, 880500000)
-    p2.set_ylim(876300000, 880500000)
+    p1.set_ylim(880300000, 881900000)
+    p2.set_ylim(880300000, 881900000)
 
     def animate(i):
         plot_data.set_ydata(ch0_buf)
