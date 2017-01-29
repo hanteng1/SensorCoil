@@ -269,12 +269,43 @@ def main():
     def press(event):
         print('press', event.key)
         sys.stdout.flush()
-        if event.key == 'x':
+        if event.key == 'r':  #rescale
             r_max, r_min = reScale()
             p1.set_ylim(r_min, r_max)
             p2.set_ylim(r_min, r_max)
             fig.canvas.draw()
-        if event.key == ''
+
+        if event.key == 'i':  #zoom in
+            r_min, r_max = p1.get_ylim()
+            r_range = r_max - r_min
+            r_adaption = r_range * 0.1
+            p1.set_ylim(r_min+r_adaption, r_max-r_adaption)
+            p2.set_ylim(r_min+r_adaption, r_max-r_adaption)
+            fig.canvas.draw()
+
+        if event.key == 'o':  #zoom out
+            r_min, r_max = p1.get_ylim()
+            r_range = r_max - r_min
+            r_adaption = r_range * 0.1
+            p1.set_ylim(r_min-r_adaption, r_max+r_adaption)
+            p2.set_ylim(r_min-r_adaption, r_max+r_adaption)
+            fig.canvas.draw()
+
+        if event.key == 'w':   #shift up
+            r_min, r_max = p1.get_ylim()
+            r_range = r_max - r_min
+            r_adaption = r_range * 0.1
+            p1.set_ylim(r_min+r_adaption, r_max+r_adaption)
+            p2.set_ylim(r_min+r_adaption, r_max+r_adaption)
+            fig.canvas.draw()
+
+        if event.key == 'x':   #shift down
+            r_min, r_max = p1.get_ylim()
+            r_range = r_max - r_min
+            r_adaption = r_range * 0.1
+            p1.set_ylim(r_min-r_adaption, r_max-r_adaption)
+            p2.set_ylim(r_min-r_adaption, r_max-r_adaption)
+            fig.canvas.draw()
 
     fig, (p1, p2) = plt.subplots(2, 1)
     fig.canvas.mpl_connect('close_event', handle_close)
