@@ -193,7 +193,7 @@ def AddValue(val):
     ch1_buf.append(avg)
     ch1_buf.popleft()
 
-def AddValue(val, ch):
+def AddValues(val, ch):
     ch.append(val)
     ch.popleft()
 
@@ -217,18 +217,18 @@ def msp430():
             #print("Read:%s" % (binascii.hexlify(read_val)))
             #get channel 0
             ch_0 = int(binascii.hexlify(read_val[7:11]), 16)
-            #AddValue(ch_0)
-            AddValue(ch_0, ch0_buf)
-            print("read:%s"%ch_0)
+            AddValue(ch_0)
+            #AddValue(ch_0, ch0_buf)
+            #print("read:%s"%ch_0)
             #get channel 1
             ch_1 = int(binascii.hexlify(read_val[11:15]), 16)
-            AddValue(ch_1, ch1_buf)
+            #AddValue(ch_1, ch1_buf)
             #get channel 2
             ch_2 = int(binascii.hexlify(read_val[15:19]), 16)
-            AddValue(ch_2, ch2_buf)
+            #AddValue(ch_2, ch2_buf)
             #get channel 3
             ch_3 = int(binascii.hexlify(read_val[19:23]), 16)
-            AddValue(ch_3, ch3_buf)
+            #AddValue(ch_3, ch3_buf)
 
             time.sleep(0.005)  # ~200Hz
     except ValueError:
@@ -237,7 +237,7 @@ def msp430():
     print('existing...')
     while serial_port.inWaiting():
         read_val = serial_port.read(serial_port.inWaiting())
-        print("Read:%s" % (binascii.hexlify(read_val)))
+        #print("Read:%s" % (binascii.hexlify(read_val)))
 
     ldc_stop_streaming(serial_port)
     serial_port.close()
@@ -255,13 +255,54 @@ def main():
         t.do_run = False
         t.join()
 
+    def reScale():
+        range_max_temp = 0
+        range_min_temp = 8800000000
+        for itrd in ch0_buf:
+            if range_max_temp < itrd:
+                range_max_temp = itrd
+            if range_min_temp > itrd:
+                range_min_temp = itrd
+        print("max: %s, min: %s" % (range_max_temp,range_min_temp))
+        return [range_max_temp, range_min_temp] 
+
+    def press(event):
+        print('press', event.key)
+        sys.stdout.flush()
+        if event.key == 'x':
+            r_max, r_min = reScale()
+            p1.set_ylim(r_min, r_max)
+            p2.set_ylim(r_min, r_max)
+            fig.canvas.draw()
+        if event.key == ''
+
     fig, (p1, p2) = plt.subplots(2, 1)
     fig.canvas.mpl_connect('close_event', handle_close)
+    fig.canvas.mpl_connect('key_press_event', press)
+
+    range_max = 0
+    range_min = 8803000000
+
+    #define y axis range based on 3 second sample collection
+    t_end = time.time() + 10 #10 secs
+    while time.time() < t_end:
+        #print(ch0_buf[-1]) #peak at the latest element
+        temp_ch0 = ch0_buf[-1]
+        print("read: %s"%(temp_ch0))
+        if range_max < temp_ch0: 
+            range_max = temp_ch0
+        if range_min > temp_ch0:
+            range_min = temp_ch0
+
+    print("max: %s, min: %s" % (range_max,range_min))
+
+    print("==============")
+
     plot_data, = p1.plot(ch0_buf, animated=True)
     plot_processed, = p2.plot(ch1_buf, animated=True)
-    p1.set_ylim(880300000, 881900000)
-    p2.set_ylim(880300000, 881900000)
-
+    p1.set_ylim(range_min, range_max)
+    p2.set_ylim(range_min, range_max)
+    
     def animate(i):
         plot_data.set_ydata(ch0_buf)
         plot_data.set_xdata(range(len(ch0_buf)))
