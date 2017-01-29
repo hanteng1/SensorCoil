@@ -146,7 +146,7 @@ def read_reg(serial_port, addr):
     return binascii.hexlify(data_read)
 
 def ldc_config(serial_port):
-    write_reg(serial_port, LDC1614_MUX_CONFIG,       '820C') #channel, C20C -> 4 channels -> 1 10(4 chs) 0001000001 100 (3.3mhz) 
+    write_reg(serial_port, LDC1614_MUX_CONFIG,       'C20C') #channel, C20C -> 4 channels -> 1 10(4 chs) 0001000001 100 (3.3mhz) 
                                                             #820C -> 4 channels -> 1 00(ch 0) 0001000001 100 (3.3mhz)
 
 
@@ -184,6 +184,11 @@ ch1_buf = deque(0 for _ in range(5000))
 ch2_buf = deque(0 for _ in range(5000))
 ch3_buf = deque(0 for _ in range(5000))
 avg = 0
+ch0_avg = 0
+ch1_avg = 0
+ch2_avg = 0
+ch3_avg = 0
+
 
 def AddValue(val):
     global avg
@@ -195,9 +200,33 @@ def AddValue(val):
     ch1_buf.append(avg)
     ch1_buf.popleft()
 
-def AddValues(val, ch):
-    ch.append(val)
-    ch.popleft()
+def AddValues(val, ch_index):
+    #add avg value
+    if ch_index == 0:
+        global ch0_avg
+        global ch0_buf
+        ch0_avg = ch0_avg + 0.1*(val-ch0_avg)
+        ch0_buf.append(ch0_avg)
+        ch0_buf.popleft()
+    elif ch_index == 1:
+        global ch1_avg
+        global ch1_buf
+        ch1_avg = ch1_avg + 0.1*(val-ch1_avg)
+        ch1_buf.append(ch1_avg)
+        ch1_buf.popleft()
+    elif ch_index == 2:
+        global ch2_avg
+        global ch2_buf
+        ch2_avg = ch2_avg + 0.1*(val-ch2_avg)
+        ch2_buf.append(ch2_avg)
+        ch2_buf.popleft()
+    elif ch_index == 3:
+        global ch3_avg
+        global ch3_buf
+        ch3_avg = ch3_avg + 0.1*(val-ch3_avg)
+        ch3_buf.append(ch3_avg)
+        ch3_buf.popleft()
+
 
 def msp430():
     t = threading.currentThread()
@@ -219,18 +248,16 @@ def msp430():
             #print("Read:%s" % (binascii.hexlify(read_val)))
             #get channel 0
             ch_0 = int(binascii.hexlify(read_val[7:11]), 16)
-            AddValue(ch_0)
-            #AddValue(ch_0, ch0_buf)
-            #print("read:%s"%ch_0)
+            AddValues(ch_0, 0)
             #get channel 1
             ch_1 = int(binascii.hexlify(read_val[11:15]), 16)
-            #AddValue(ch_1, ch1_buf)
+            AddValues(ch_1, 1)
             #get channel 2
             ch_2 = int(binascii.hexlify(read_val[15:19]), 16)
-            #AddValue(ch_2, ch2_buf)
+            AddValues(ch_2, 2)
             #get channel 3
             ch_3 = int(binascii.hexlify(read_val[19:23]), 16)
-            #AddValue(ch_3, ch3_buf)
+            AddValues(ch_3, 3)
 
             time.sleep(0.005)  # ~200Hz
     except ValueError:
@@ -309,7 +336,7 @@ def main():
             p2.set_ylim(r_min-r_adaption, r_max-r_adaption)
             fig.canvas.draw()
 
-    fig, (p1, p2) = plt.subplots(2, 1)
+    fig, (p0, p1, p2, p3) = plt.subplots(4, 1)
     fig.canvas.mpl_connect('close_event', handle_close)
     fig.canvas.mpl_connect('key_press_event', press)
 
@@ -317,7 +344,7 @@ def main():
     range_min = 8803000000
 
     #define y axis range based on 3 second sample collection
-    t_end = time.time() + 10 #10 secs
+    t_end = time.time() + 3 #3 secs
     while time.time() < t_end:
         #print(ch0_buf[-1]) #peak at the latest element
         temp_ch0 = ch0_buf[-1]
@@ -331,17 +358,27 @@ def main():
 
     print("==============")
 
-    plot_data, = p1.plot(ch0_buf, animated=True)
-    plot_processed, = p2.plot(ch1_buf, animated=True)
+    plot_data_ch_0, = p0.plot(ch0_buf, animated=True)
+    plot_data_ch_1, = p1.plot(ch1_buf, animated=True)
+    plot_data_ch_2, = p2.plot(ch2_buf, animated=True)
+    plot_data_ch_3, = p3.plot(ch3_buf, animated=True)
+    
+    p0.set_ylim(range_min, range_max)
     p1.set_ylim(range_min, range_max)
     p2.set_ylim(range_min, range_max)
+    p3.set_ylim(range_min, range_max)
+    
     
     def animate(i):
-        plot_data.set_ydata(ch0_buf)
-        plot_data.set_xdata(range(len(ch0_buf)))
-        plot_processed.set_ydata(ch1_buf)
-        plot_processed.set_xdata(range(len(ch1_buf)))
-        return [plot_data, plot_processed]
+        plot_data_ch_0.set_ydata(ch0_buf)
+        plot_data_ch_0.set_xdata(range(len(ch0_buf)))
+        plot_data_ch_1.set_ydata(ch1_buf)
+        plot_data_ch_1.set_xdata(range(len(ch1_buf)))
+        plot_data_ch_2.set_ydata(ch2_buf)
+        plot_data_ch_2.set_xdata(range(len(ch2_buf)))
+        plot_data_ch_3.set_ydata(ch3_buf)
+        plot_data_ch_3.set_xdata(range(len(ch3_buf)))
+        return [plot_data_ch_0, plot_data_ch_1, plot_data_ch_2, plot_data_ch_3]
     
     ani = animation.FuncAnimation(fig, animate, range(10000), 
                                   interval=50, blit=True)
