@@ -189,16 +189,9 @@ ch1_avg = 0
 ch2_avg = 0
 ch3_avg = 0
 
+diff_ch0_ch1_buff = deque(0 for _ in range(5000))
+diff_ch0_ch1_avg = 0
 
-def AddValue(val):
-    global avg
-
-    ch0_buf.append(val)
-    ch0_buf.popleft()
-
-    avg = avg + 0.1*(val-avg)
-    ch1_buf.append(avg)
-    ch1_buf.popleft()
 
 def AddValues(val, ch_index):
     #add avg value
@@ -226,6 +219,13 @@ def AddValues(val, ch_index):
         ch3_avg = ch3_avg + 0.1*(val-ch3_avg)
         ch3_buf.append(ch3_avg)
         ch3_buf.popleft()
+    elif ch_index == 4:
+        global diff_ch0_ch1_avg
+        global diff_ch0_ch1_buff
+        diff_ch0_ch1_avg = diff_ch0_ch1_avg + 0.1*(val-diff_ch0_ch1_avg)
+        diff_ch0_ch1_buff.append(diff_ch0_ch1_avg)
+        diff_ch0_ch1_buff.popleft()
+
 
 
 def msp430():
@@ -241,6 +241,8 @@ def msp430():
     #write_reg (serial_port, LDC1614_CONFIG, '0000')
     
     ldc_start_streaming(serial_port)
+
+    global diff_ch0_ch1
 
     try:
         while getattr(t, "do_run", True):   
@@ -258,6 +260,9 @@ def msp430():
             #get channel 3
             ch_3 = int(binascii.hexlify(read_val[19:23]), 16)
             AddValues(ch_3, 3)
+
+            #calculate differences
+            AddValues(ch_0-ch_1, 4)
 
             time.sleep(0.005)  # ~200Hz
     except ValueError:
@@ -315,6 +320,13 @@ def main():
                 if range_min_temp > itrd:
                     range_min_temp = itrd
             print("max: %s, min: %s" % (range_max_temp,range_min_temp))
+        if ch_index == 4:
+            for itrd in diff_ch0_ch1_buff:
+                if range_max_temp < itrd:
+                    range_max_temp = itrd
+                if range_min_temp > itrd:
+                    range_min_temp = itrd
+            print("max: %s, min: %s" % (range_max_temp,range_min_temp))
             
         return [range_max_temp, range_min_temp] 
 
@@ -341,6 +353,8 @@ def main():
             p2.set_ylim(r_min, r_max)
             r_max, r_min = reScale(3)
             p3.set_ylim(r_min, r_max)
+            r_max, r_min = reScale(4)
+            p4.set_ylim(r_min, r_max)
             fig.canvas.draw()
 
         if event.key == 'i':  #zoom in
@@ -383,7 +397,7 @@ def main():
             p3.set_ylim(r_min+r_adaption, r_max-r_adaption)
             fig.canvas.draw()
 
-    fig, (p0, p1, p2, p3) = plt.subplots(4, 1)
+    fig, (p0, p1, p2, p3, p4) = plt.subplots(5, 1)
     fig.canvas.mpl_connect('close_event', handle_close)
     fig.canvas.mpl_connect('key_press_event', press)
 
@@ -411,11 +425,13 @@ def main():
     plot_data_ch_1, = p1.plot(ch1_buf, animated=True)
     plot_data_ch_2, = p2.plot(ch2_buf, animated=True)
     plot_data_ch_3, = p3.plot(ch3_buf, animated=True)
+    plot_data_ch_4, = p4.plot(diff_ch0_ch1_buff, animated=True)
     
     p0.set_ylim(range_min, range_max)
     p1.set_ylim(range_min, range_max)
     p2.set_ylim(range_min, range_max)
     p3.set_ylim(range_min, range_max)
+    p4.set_ylim(range_min, range_max)
     
     
     def animate(i):
@@ -427,7 +443,11 @@ def main():
         plot_data_ch_2.set_xdata(range(len(ch2_buf)))
         plot_data_ch_3.set_ydata(ch3_buf)
         plot_data_ch_3.set_xdata(range(len(ch3_buf)))
-        return [plot_data_ch_0, plot_data_ch_1, plot_data_ch_2, plot_data_ch_3]
+
+        plot_data_ch_4.set_ydata(diff_ch0_ch1_buff)
+        plot_data_ch_4.set_xdata(range(len(diff_ch0_ch1_buff)))
+
+        return [plot_data_ch_0, plot_data_ch_1, plot_data_ch_2, plot_data_ch_3, plot_data_ch_4]
     
     ani = animation.FuncAnimation(fig, animate, range(10000), 
                                   interval=50, blit=True)
