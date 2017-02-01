@@ -284,61 +284,110 @@ def main():
         t.do_run = False
         t.join()
 
-    def reScale():
+    def reScale(ch_index):
         range_max_temp = 0
         range_min_temp = 8800000000
-        for itrd in ch0_buf:
-            if range_max_temp < itrd:
-                range_max_temp = itrd
-            if range_min_temp > itrd:
-                range_min_temp = itrd
-        print("max: %s, min: %s" % (range_max_temp,range_min_temp))
+        if ch_index == 0:
+            for itrd in ch0_buf:
+                if range_max_temp < itrd:
+                    range_max_temp = itrd
+                if range_min_temp > itrd:
+                    range_min_temp = itrd
+            print("max: %s, min: %s" % (range_max_temp,range_min_temp))
+        if ch_index == 1:
+            for itrd in ch1_buf:
+                if range_max_temp < itrd:
+                    range_max_temp = itrd
+                if range_min_temp > itrd:
+                    range_min_temp = itrd
+            print("max: %s, min: %s" % (range_max_temp,range_min_temp))
+        if ch_index == 2:
+            for itrd in ch2_buf:
+                if range_max_temp < itrd:
+                    range_max_temp = itrd
+                if range_min_temp > itrd:
+                    range_min_temp = itrd
+            print("max: %s, min: %s" % (range_max_temp,range_min_temp))
+        if ch_index == 3:
+            for itrd in ch3_buf:
+                if range_max_temp < itrd:
+                    range_max_temp = itrd
+                if range_min_temp > itrd:
+                    range_min_temp = itrd
+            print("max: %s, min: %s" % (range_max_temp,range_min_temp))
+            
         return [range_max_temp, range_min_temp] 
 
     def press(event):
         print('press', event.key)
         sys.stdout.flush()
+
+        if event.key == '0':
+            p0.set_title('channel 0')
+        if event.key == '1':
+            p0.set_title('channel 1')
+        if event.key == '2':
+            p0.set_title('channel 2')
+        if event.key == '3':
+            p0.set_title('channel 3')
+
+
         if event.key == 'r':  #rescale
-            r_max, r_min = reScale()
+            r_max, r_min = reScale(0)
+            p0.set_ylim(r_min, r_max)
+            r_max, r_min = reScale(1)
             p1.set_ylim(r_min, r_max)
+            r_max, r_min = reScale(2)
             p2.set_ylim(r_min, r_max)
+            r_max, r_min = reScale(3)
+            p3.set_ylim(r_min, r_max)
             fig.canvas.draw()
 
         if event.key == 'i':  #zoom in
             r_min, r_max = p1.get_ylim()
             r_range = r_max - r_min
             r_adaption = r_range * 0.1
+            p0.set_ylim(r_min+r_adaption, r_max-r_adaption)
             p1.set_ylim(r_min+r_adaption, r_max-r_adaption)
             p2.set_ylim(r_min+r_adaption, r_max-r_adaption)
+            p3.set_ylim(r_min+r_adaption, r_max-r_adaption)
             fig.canvas.draw()
 
         if event.key == 'o':  #zoom out
             r_min, r_max = p1.get_ylim()
             r_range = r_max - r_min
             r_adaption = r_range * 0.1
+            p0.set_ylim(r_min+r_adaption, r_max-r_adaption)
             p1.set_ylim(r_min-r_adaption, r_max+r_adaption)
             p2.set_ylim(r_min-r_adaption, r_max+r_adaption)
+            p3.set_ylim(r_min+r_adaption, r_max-r_adaption)
             fig.canvas.draw()
 
         if event.key == 'w':   #shift up
             r_min, r_max = p1.get_ylim()
             r_range = r_max - r_min
             r_adaption = r_range * 0.1
+            p0.set_ylim(r_min+r_adaption, r_max-r_adaption)
             p1.set_ylim(r_min+r_adaption, r_max+r_adaption)
             p2.set_ylim(r_min+r_adaption, r_max+r_adaption)
+            p3.set_ylim(r_min+r_adaption, r_max-r_adaption)
             fig.canvas.draw()
 
         if event.key == 'x':   #shift down
             r_min, r_max = p1.get_ylim()
             r_range = r_max - r_min
             r_adaption = r_range * 0.1
+            p0.set_ylim(r_min+r_adaption, r_max-r_adaption)
             p1.set_ylim(r_min-r_adaption, r_max-r_adaption)
             p2.set_ylim(r_min-r_adaption, r_max-r_adaption)
+            p3.set_ylim(r_min+r_adaption, r_max-r_adaption)
             fig.canvas.draw()
 
     fig, (p0, p1, p2, p3) = plt.subplots(4, 1)
     fig.canvas.mpl_connect('close_event', handle_close)
     fig.canvas.mpl_connect('key_press_event', press)
+
+    p0.set_title('Press to select channel')
 
     range_max = 0
     range_min = 8803000000
